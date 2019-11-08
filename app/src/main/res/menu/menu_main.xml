@@ -1,0 +1,15 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.example.myapplication.MainActivity">
+    <item
+        android:id="@+id/action_SyncDir"
+        android:orderInCategory="100"
+        android:title="@string/action_SyncDir"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_ftpparam"
+        android:orderInCategory="100"
+        android:title="@string/action_ftpParam"
+        app:showAsAction="never" />
+</menu>

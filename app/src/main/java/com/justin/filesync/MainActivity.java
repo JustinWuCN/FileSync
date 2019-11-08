@@ -7,10 +7,14 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
@@ -21,11 +25,17 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     static final String TAG = "MainActivity";
 
     static FTPCommunication mFtp;
+
+	//存储服务器的地址，登录名，密码。
+	//多个线程一起上传数据时，使用同一个地址，所以在启动同步前，先要从SharePerference里读出。
+	static String mStrFtpAddr;
+	static String mStrUserName;
+	static String mStrPasswd;
 
     private Context mContext;
 
@@ -39,13 +49,49 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
 
         mContext = this;
-        Button btn1 =(Button) findViewById(R.id.btnUpload);
+        Button btn1 = (Button) findViewById(R.id.btnUpload);
         btn1.setOnClickListener(this);
+        Button btn2 = (Button) findViewById(R.id.btnSelectFolder);
+        btn2.setOnClickListener(this);
+
         verifyPermissions();
+
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
     }
 
 
-    private void verifyPermissions(){
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+        Intent intent;
+
+        //noinspection SimplifiableIfStatement
+        switch (id)
+        {
+            case  R.id.action_ftpparam:
+                intent = new Intent(this, FtpParamActivity.class);
+                startActivity(intent);
+                return true;
+            case R.id.action_SyncDir:
+                intent = new Intent(this, FoldSelectActivity.class);
+                startActivity(intent);
+                return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void verifyPermissions() {
         Log.d(TAG, "verifyPermissions: Checking Permissions.");
 
 
@@ -61,9 +107,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private boolean checkPermission(){
+    private boolean checkPermission() {
         int result = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE);
-        if (result == PackageManager.PERMISSION_GRANTED){
+        if (result == PackageManager.PERMISSION_GRANTED) {
 
             return true;
 
@@ -76,14 +122,48 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     //implement the onClick method here
     public void onClick(View view) {
-        switch(view.getId()) {
+        switch (view.getId()) {
             case R.id.btnUpload:
                 UploadFile();
+                break;
+            case R.id.btnSelectFolder:
+                OpenSelectFolder();
                 break;
             default:
         }
     }
 
+
+    /**
+     * A simple array adapter that creates a list of cheeses.
+     */
+    private class MyAdapter extends BaseAdapter {
+        @Override
+        public int getCount() {
+            return Cheeses.CHEESES.length;
+        }
+
+        @Override
+        public String getItem(int position) {
+            return Cheeses.CHEESES[position];
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return Cheeses.CHEESES[position].hashCode();
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup container) {
+            if (convertView == null) {
+                convertView = getLayoutInflater().inflate(R.layout.list_item, container, false);
+            }
+
+            ((TextView) convertView.findViewById(android.R.id.text1))
+                    .setText(getItem(position));
+            return convertView;
+        }
+    }
 
     //同步完成后,通知上层,上层断开连接.
     class SyncCallback implements FTPCommunication.Callback {
@@ -92,32 +172,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         public void SyncComplete(FTPCommunication owner, int isComplete) {
             owner.disconnect();
         }
-    };
+    }
+
+    ;
 
     //开新线程进行网络操作
     class MyThread extends Thread {
-        public void start()
-        {
+        public void start() {
             Log.e(TAG, "Justin. MyThread in.");
             String SdcardRootPath = Environment.getExternalStorageDirectory().getAbsolutePath();
-            mFtp = new FTPCommunication(mContext, SdcardRootPath + "//meizu//", "//ftp//", "192.168.31.122", "anonymous", "anonymous");
+            //mFtp = new FTPCommunication(mContext, SdcardRootPath + "//meizu//", "//ftp//", "192.168.31.122", "anonymous", "anonymous");
+            mFtp = new FTPCommunication(mContext, SdcardRootPath + "//meizu//", "//ftp//", mStrFtpAddr, mStrUserName, mStrPasswd);
 
             mFtp.setCallback(new SyncCallback());
 
-			mFtp.StartSync();
+            mFtp.StartSync();
 
         }
-    };
+    }
+
+    ;
+
     @Override
-    protected void onDestroy()
-    {
+    protected void onDestroy() {
         mFtp.disconnect();
 
         super.onDestroy();
     }
 
-    protected  void UploadFile()
-    {
+	protected void ReadPreference() {
+        SharedPreferences sp=this.getPreferences(MODE_PRIVATE);
+        mStrFtpAddr = sp.getString("FtpAddr", "");
+        //int iPort = sp.getInt("FtpPort",20);
+        mStrUserName = sp.getString("UserName", "");
+        mStrPasswd = sp.getString("Password", "");
+	}
+
+    protected void UploadFile() {
         Log.e(TAG, "Justin. button in.");
 /*
         String SdcardRootPath = Environment.getExternalStorageDirectory().getAbsolutePath();
@@ -131,12 +222,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Log.d(TAG, str[i]);
         }
 */
+		ReadPreference();
         new MyThread().start();
         //testOpenFile();
     }
 
-    protected void testOpenFile()
-    {
+    protected void testOpenFile() {
         String SdcardRootPath = Environment.getExternalStorageDirectory().getAbsolutePath();
         //Log.e(TAG, "sdcard path = " + mSdcardRootPath);
         String path = SdcardRootPath + "//ceshitest.txt";
@@ -208,4 +299,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //		uploadDialog.getWindow().setContentView(fileChooserView,
 //				new RelativeLayout.LayoutParams(400, 640));
 //	}
+//}
+
+    private String OpenSelectFolder() {
+        final String[] chosen = new String[1];
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        //Create FileOpenDialog and register a callback
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        SimpleFileDialog FolderChooseDialog = new SimpleFileDialog(MainActivity.this, "FolderChoose",
+                new SimpleFileDialog.SimpleFileDialogListener() {
+                    @Override
+                    public void onChosenDir(String chosenDir) {
+                        // The code in this function will be executed when the dialog OK button is pushed
+                        chosen[0] = chosenDir;
+                        Toast.makeText(MainActivity.this, "Chosen FileOpenDialog File: " +
+                                chosen[0], Toast.LENGTH_LONG).show();
+                    }
+                });
+
+        FolderChooseDialog.chooseFile_or_Dir();
+
+        return chosen[0];
+
+    }
+
 }

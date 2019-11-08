@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">FileSync</string>
+    <string name="action_SyncDir">Sync Directory</string>
+    <string name="action_ftpParam">FTP Setting</string>
+    <string name="title_activity_ftp_param">FtpParamSetting</string>
+    <string name="FTPAddr">FTP 地址</string>
+    <string name="FTPPort">FTP 端口</string>
+    <string name="FTPUser">用户名</string>
+    <string name="FTPPassword">密码</string>
 </resources>
