@@ -29,7 +29,7 @@ public class FtpParamActivity extends AppCompatActivity {
 
         SharedPreferences sp=this.getPreferences(MODE_PRIVATE);
         String strFtpAddr = sp.getString("FtpAddr", "");
-        int iPort = sp.getInt("FtpPort",20);
+        int iPort = sp.getInt("FtpPort",22);
         String strUserName = sp.getString("UserName", "");
         String strPassword = sp.getString("Password", "");
 

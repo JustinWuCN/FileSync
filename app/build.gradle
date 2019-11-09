@@ -29,4 +29,6 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
     implementation files('libs/ftp4j-1.7.2.jar')
     implementation 'androidx.gridlayout:gridlayout:1.0.0'
+    implementation project(':filechooser')
+
 }

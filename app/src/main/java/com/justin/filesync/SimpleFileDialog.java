@@ -263,7 +263,6 @@ public class SimpleFileDialog {
         titleLayout1.setOrientation(LinearLayout.VERTICAL);
         titleLayout1.addView(m_titleView1);
 
-        //if (Select_type == FolderChoose || Select_type == FileSave) {
         if (Select_type == FileSave) {
             // /////////////////////////////
             // Create New Folder Button //

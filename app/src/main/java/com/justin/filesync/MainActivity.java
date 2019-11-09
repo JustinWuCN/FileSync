@@ -16,16 +16,22 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Map;
 
+import com.thl.filechooser.FileChooser;
+import com.thl.filechooser.FileInfo;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, AdapterView.OnItemClickListener, FileChooser.FileChoosenListener {
 
     static final String TAG = "MainActivity";
 
@@ -36,6 +42,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	static String mStrFtpAddr;
 	static String mStrUserName;
 	static String mStrPasswd;
+	static ListView list;
+//	static Map<String> mMap;    //记录有多少个目录需要同步
+
+    //create 5 item.
+    private String mstrDirArray[] = new String[]{"","","","",""};
+    private ArrayAdapter<String> m_listAdapter = null;
+
+    private int mCurDirArray = 0;
+	private boolean mDirArrayChange = false;
 
     private Context mContext;
 
@@ -48,15 +63,51 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        verifyPermissions();
+
         mContext = this;
         Button btn1 = (Button) findViewById(R.id.btnUpload);
         btn1.setOnClickListener(this);
         Button btn2 = (Button) findViewById(R.id.btnSelectFolder);
         btn2.setOnClickListener(this);
 
-        verifyPermissions();
+        list = findViewById(R.id.listDir);
+        ReadSyncDir();
+
+        m_listAdapter=new ArrayAdapter<String>(this, R.layout.listitem, mstrDirArray);
+        list.setAdapter(m_listAdapter);
+
+        list.setOnItemClickListener(this);
 
     }
+
+//    @Override
+//    protected void onStart() {
+//        ReadSyncDir();
+//
+//        m_listAdapter=new ArrayAdapter<String>(this, R.layout.listitem, mstrDirArray);
+//        list.setAdapter(m_listAdapter);
+//
+//        list.setOnItemClickListener(this);
+//
+//        super.onStart();
+//    }
+
+    @Override
+    protected void onStop() {
+        SaveSyncDir();
+
+        super.onStop();
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        mFtp.disconnect();
+
+        super.onDestroy();
+    }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -133,37 +184,41 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-
-    /**
-     * A simple array adapter that creates a list of cheeses.
-     */
-    private class MyAdapter extends BaseAdapter {
-        @Override
-        public int getCount() {
-            return Cheeses.CHEESES.length;
-        }
-
-        @Override
-        public String getItem(int position) {
-            return Cheeses.CHEESES[position];
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return Cheeses.CHEESES[position].hashCode();
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup container) {
-            if (convertView == null) {
-                convertView = getLayoutInflater().inflate(R.layout.list_item, container, false);
-            }
-
-            ((TextView) convertView.findViewById(android.R.id.text1))
-                    .setText(getItem(position));
-            return convertView;
-        }
+    @Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+	    //String strdir = OpenSelectFolder();
+        OpenSelectFolder();
+//	mstrDirArray[position] = strdir;
+//
+//	m_listAdapter.notifyDataSetChanged();
+//	list.refreshDrawableState();
+//
+//	Toast.makeText(this, strdir, Toast.LENGTH_SHORT).show();
     }
+
+    @Override
+    public void onFileChoosen(String filePath) {
+        Toast.makeText(MainActivity.this, filePath, Toast.LENGTH_SHORT).show();
+//				((TextView) findViewById(R.id.tv_msg)).setText(filePath);
+
+		//只能存5个目录
+		if(mCurDirArray >= 5)
+			return;
+
+		//check if filepath is exist.
+		int i;
+		for(i = 0; i < mCurDirArray; ++i) {
+		    if(filePath.equals(mstrDirArray[i]))
+		        return;
+        }
+        mstrDirArray[mCurDirArray] = filePath; 
+		mCurDirArray ++;
+
+		mDirArrayChange = true;
+
+		m_listAdapter.notifyDataSetChanged();
+    }
+
 
     //同步完成后,通知上层,上层断开连接.
     class SyncCallback implements FTPCommunication.Callback {
@@ -173,8 +228,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             owner.disconnect();
         }
     }
-
-    ;
 
     //开新线程进行网络操作
     class MyThread extends Thread {
@@ -191,23 +244,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    ;
-
-    @Override
-    protected void onDestroy() {
-        mFtp.disconnect();
-
-        super.onDestroy();
-    }
-
-	protected void ReadPreference() {
-        SharedPreferences sp=this.getPreferences(MODE_PRIVATE);
-        mStrFtpAddr = sp.getString("FtpAddr", "");
-        //int iPort = sp.getInt("FtpPort",20);
-        mStrUserName = sp.getString("UserName", "");
-        mStrPasswd = sp.getString("Password", "");
-	}
-
     protected void UploadFile() {
         Log.e(TAG, "Justin. button in.");
 /*
@@ -222,7 +258,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Log.d(TAG, str[i]);
         }
 */
-		ReadPreference();
+        ReadPreference();
         new MyThread().start();
         //testOpenFile();
     }
@@ -301,27 +337,76 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //	}
 //}
 
-    private String OpenSelectFolder() {
-        final String[] chosen = new String[1];
+//    private String OpenSelectFolder() {
+//        final String[] chosen = new String[1];
+//
+//        /////////////////////////////////////////////////////////////////////////////////////////////////
+//        //Create FileOpenDialog and register a callback
+//        /////////////////////////////////////////////////////////////////////////////////////////////////
+//        SimpleFileDialog FolderChooseDialog = new SimpleFileDialog(MainActivity.this, "FolderChoose",
+//                new SimpleFileDialog.SimpleFileDialogListener() {
+//                    @Override
+//                    public void onChosenDir(String chosenDir) {
+//                        // The code in this function will be executed when the dialog OK button is pushed
+//                        chosen[0] = chosenDir;
+//                        Toast.makeText(MainActivity.this, "Chosen FileOpenDialog File: " +
+//                                chosen[0], Toast.LENGTH_LONG).show();
+//                    }
+//                });
+//
+//        FolderChooseDialog.chooseFile_or_Dir();
+//
+//        return chosen[0];
+//
+//    }
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        //Create FileOpenDialog and register a callback
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        SimpleFileDialog FolderChooseDialog = new SimpleFileDialog(MainActivity.this, "FolderChoose",
-                new SimpleFileDialog.SimpleFileDialogListener() {
-                    @Override
-                    public void onChosenDir(String chosenDir) {
-                        // The code in this function will be executed when the dialog OK button is pushed
-                        chosen[0] = chosenDir;
-                        Toast.makeText(MainActivity.this, "Chosen FileOpenDialog File: " +
-                                chosen[0], Toast.LENGTH_LONG).show();
-                    }
-                });
-
-        FolderChooseDialog.chooseFile_or_Dir();
-
-        return chosen[0];
-
+    private void OpenSelectFolder() {
+        final String chosen = new String();
+	    FileChooser fileChooser = new FileChooser(MainActivity.this, this);
+	    fileChooser.open();
     }
 
+
+    protected void ReadPreference() {
+        SharedPreferences sp=this.getPreferences(MODE_PRIVATE);
+        mStrFtpAddr = sp.getString("FtpAddr", "");
+        //int iPort = sp.getInt("FtpPort",20);
+        mStrUserName = sp.getString("UserName", "");
+        mStrPasswd = sp.getString("Password", "");
+    }
+
+    protected void ReadSyncDir() {
+        SharedPreferences sp=this.getPreferences(MODE_PRIVATE);
+
+        mstrDirArray[0] = sp.getString("dir0", "");
+        mstrDirArray[1] = sp.getString("dir1", "");
+        mstrDirArray[2] = sp.getString("dir2", "");
+        mstrDirArray[3] = sp.getString("dir3", "");
+        mstrDirArray[4] = sp.getString("dir4", "");
+
+        int i;
+        for(i = 0; i < 5; ++i, ++mCurDirArray) {
+            if(mstrDirArray[i].equals(""))
+                break;
+        }
+    }
+
+    protected void SaveSyncDir() {
+		if(mDirArrayChange) {
+			SharedPreferences sp=this.getPreferences(MODE_PRIVATE);
+			SharedPreferences.Editor editor=sp.edit();
+
+			editor.putString("dir0", mstrDirArray[0]);
+			editor.putString("dir1", mstrDirArray[1]);
+			editor.putString("dir2", mstrDirArray[2]);
+			editor.putString("dir3", mstrDirArray[3]);
+			editor.putString("dir4", mstrDirArray[4]);
+
+			editor.commit();
+
+		}
+
+		mDirArrayChange = false;
+	}
 }
+
