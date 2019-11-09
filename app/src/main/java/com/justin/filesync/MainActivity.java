@@ -68,8 +68,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mContext = this;
         Button btn1 = (Button) findViewById(R.id.btnUpload);
         btn1.setOnClickListener(this);
-        Button btn2 = (Button) findViewById(R.id.btnSelectFolder);
-        btn2.setOnClickListener(this);
 
         list = findViewById(R.id.listDir);
         ReadSyncDir();
@@ -177,23 +175,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.btnUpload:
                 UploadFile();
                 break;
-            case R.id.btnSelectFolder:
-                OpenSelectFolder();
-                break;
+
             default:
         }
     }
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-	    //String strdir = OpenSelectFolder();
+
         OpenSelectFolder();
-//	mstrDirArray[position] = strdir;
-//
-//	m_listAdapter.notifyDataSetChanged();
-//	list.refreshDrawableState();
-//
-//	Toast.makeText(this, strdir, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -363,6 +353,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void OpenSelectFolder() {
         final String chosen = new String();
 	    FileChooser fileChooser = new FileChooser(MainActivity.this, this);
+        fileChooser.showFile(false);
 	    fileChooser.open();
     }
 
